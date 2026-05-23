@@ -4,23 +4,38 @@ import { dispatchNotification } from '../../workers/notificationDispatcher.js';
 
 export default async function handler(req: any, res: any) {
   // CORS & Methods
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
-  // Security: check for Vercel Cron Secret or our Service Key
-  const authHeader = req.headers.authorization;
-  const cronSecret = process.env.CRON_SECRET;
-  const serviceKey = process.env.SERVICE_ROLE_KEY;
-  
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}` && authHeader !== `Bearer ${serviceKey}`) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.replace('Bearer ', '').trim();
+
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+  const serviceKey = process.env.SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+  const cronSecret = process.env.CRON_SECRET || '';
+
+  // Accept either: CRON_SECRET, SERVICE_ROLE_KEY, or a valid user JWT
+  let authorized = false;
+  if (cronSecret && token === cronSecret) authorized = true;
+  else if (serviceKey && token === serviceKey) authorized = true;
+  else if (token) {
+    // Validate as a user JWT
+    const verifyClient = createClient(supabaseUrl, serviceKey);
+    const { data: { user } } = await verifyClient.auth.getUser(token);
+    if (user) authorized = true;
+  }
+
+  if (!authorized) {
     return res.status(401).json({ success: false, error: 'Unauthorized' });
   }
 
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-  const supabaseKey = serviceKey || process.env.VITE_SUPABASE_ANON_KEY || '';
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = createClient(supabaseUrl, serviceKey);
+
 
   console.log('[Cron] Starting scheduled scrape run...');
 
