@@ -1,34 +1,39 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
-serve(async (req) => {
+serve(async (_req) => {
   try {
-    // We expect this edge function to be invoked via pg_cron periodically
-    console.log("Starting scheduled scrape job")
-    
-    // Hit the backend scraping endpoint
-    const backendUrl = Deno.env.get('BACKEND_URL') || 'http://localhost:3000'
-    const secret = Deno.env.get('CRON_SECRET') || 'dev-secret'
-    
-    const response = await fetch(`${backendUrl}/api/internal/scrape`, {
+    console.log("[scrape-watches] Starting scheduled scrape job via pg_cron")
+
+    // Your deployed Vercel URL — set this in Supabase Edge Function secrets as VERCEL_URL
+    const vercelUrl = Deno.env.get('VERCEL_URL') || ''
+    const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY') || ''
+
+    if (!vercelUrl) {
+      throw new Error('VERCEL_URL environment variable is not set in Supabase Edge Function secrets')
+    }
+
+    const response = await fetch(`${vercelUrl}/api/internal/cron-scrape`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${secret}`,
+        'Authorization': `Bearer ${serviceRoleKey}`,
         'Content-Type': 'application/json'
       }
     })
-    
-    if (!response.ok) {
-      throw new Error(`Backend responded with status: ${response.status}`)
-    }
-    
+
     const data = await response.json()
-    
+
+    if (!response.ok) {
+      throw new Error(`Vercel responded with ${response.status}: ${JSON.stringify(data)}`)
+    }
+
+    console.log("[scrape-watches] Scrape job completed:", data.message)
+
     return new Response(
       JSON.stringify({ success: true, message: "Scrape job completed", data }),
       { headers: { "Content-Type": "application/json" } },
     )
   } catch (error) {
-    console.error("Scrape job failed:", error.message)
+    console.error("[scrape-watches] Scrape job failed:", error.message)
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { status: 500, headers: { "Content-Type": "application/json" } },

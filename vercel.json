@@ -22,11 +22,5 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/internal/cron-scrape",
-      "schedule": "*/5 * * * *"
-    }
   ]
 }
