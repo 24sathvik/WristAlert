@@ -65,7 +65,7 @@ export default async function handler(req: any, res: any) {
     return res.status(401).json({ success: false, error: 'Invalid token' });
   }
   const userId = user.id;
-
+  const {
     product_url, retailer, brand, model_name, image_url,
     current_price, target_price, rule_types, channels, stock_status
   } = req.body;
