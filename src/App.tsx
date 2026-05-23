@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { useAuthStore } from '@/store/useAuthStore'
 import Navbar from '@/components/layout/Navbar'
 import React, { Suspense } from 'react'
+import { useCronScraper } from '@/hooks/useCronScraper'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Skeleton } from '@/components/Skeleton'
 import { AnimatePresence } from 'framer-motion'
@@ -37,7 +38,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 }
 
 function App() {
-  const { setUser, setLoading } = useAuthStore()
+  const { user, setUser, setLoading } = useAuthStore()
+
+  // Initialize the browser-based cron scraper
+  useCronScraper(!!user)
 
   useEffect(() => {
     // Check active session
