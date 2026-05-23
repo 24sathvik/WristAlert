@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0A0A0A;
+  --color-surface: #111111;
+  --color-primary: #00FF7F;
+  --color-primary-hover: #00C853;
+  --color-muted: #888888;
+  --color-muted-green: #1A2E1A;
+  --color-border: #1F1F1F;
+  --color-text-primary: #F0F0F0;
+  --color-text-muted: #888888;
+  
+  --font-sans: 'DM Sans', sans-serif;
+  --font-display: 'Cormorant Garamond', serif;
+  --font-mono: 'DM Mono', monospace;
+  
+  --shadow-glow: 0 0 20px rgba(0, 255, 127, 0.08);
+}
+
+@keyframes hourHand {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes minuteHand {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes secondHand {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+@layer base {
+  body {
+    @apply bg-background text-text-primary font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface border border-border rounded-2xl transition-shadow duration-300 hover:shadow-glow;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-background font-bold rounded-xl px-4 py-2 transition-colors duration-200 hover:bg-primary-hover;
+  }
+  
+  .btn-destructive {
+    @apply bg-red-600 text-white font-bold rounded-xl px-4 py-2 transition-colors duration-200 hover:bg-red-700;
+  }
+  
+  .glass-card {
+    @apply bg-[#111111]/80 backdrop-blur-md border border-[#1F1F1F] rounded-2xl;
+  }
+
+  .animated-border {
+    position: relative;
+    background: linear-gradient(0deg, #00FF7F, #00C853);
+    background-size: 400% 400%;
+    animation: gradientBorder 3s ease infinite;
+  }
+  
+  @keyframes gradientBorder {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .input-field {
+    @apply bg-background border border-border rounded-xl px-4 py-3 text-text-primary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors;
+  }
+}
