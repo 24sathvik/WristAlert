@@ -71,29 +71,31 @@ export default async function handler(req: any, res: any) {
         const result = await Promise.race([scrapePromise, timeoutPromise]) as any;
         if (!result) return;
 
-        const newPrice = result.price;
-        const newStock = result.stockStatus || 'unknown';
+        const newPrice = (result.price && result.price > 0) ? result.price : null;
+        const newStock = (result.stockStatus && result.stockStatus !== 'unknown') ? result.stockStatus : null;
 
-        // Always save a snapshot even if nothing changed (proves tracking works)
-        await supabase.from('price_snapshots').insert({
-          watch_id: watch.id,
-          price: newPrice ?? watch.current_price,
-          stock_status: newStock,
-          scraped_at: new Date().toISOString(),
-        }).then(({ error }: any) => {
-          if (error) console.warn('[Cron] Snapshot insert error:', error.message);
-        });
+        // Only save snapshot if we got a real price (don't record garbage data)
+        if (newPrice) {
+          await supabase.from('price_snapshots').insert({
+            watch_id: watch.id,
+            price: newPrice,
+            stock_status: newStock ?? watch.stock_status, // keep old stock if unknown
+            scraped_at: new Date().toISOString(),
+          }).then(({ error }: any) => {
+            if (error) console.warn('[Cron] Snapshot insert error:', error.message);
+          });
+        }
 
-        // Update watch if price or stock changed
-        const priceChanged = newPrice && newPrice > 0 && newPrice !== watch.current_price;
-        const stockChanged = newStock !== watch.stock_status;
+        // Only update fields we got confident values for
+        const priceChanged = newPrice && newPrice !== watch.current_price;
+        const stockChanged = newStock && newStock !== watch.stock_status;
 
         if (priceChanged || stockChanged) {
-          await supabase.from('watches').update({
-            current_price: newPrice ?? watch.current_price,
-            stock_status: newStock,
-            last_scraped_at: new Date().toISOString(),
-          }).eq('id', watch.id);
+          const updatePayload: any = { last_scraped_at: new Date().toISOString() };
+          if (priceChanged) updatePayload.current_price = newPrice;
+          if (stockChanged) updatePayload.stock_status = newStock;
+
+          await supabase.from('watches').update(updatePayload).eq('id', watch.id);
 
           results.push(`${watch.model_name}: ₹${watch.current_price}→₹${newPrice} (${newStock})`);
 

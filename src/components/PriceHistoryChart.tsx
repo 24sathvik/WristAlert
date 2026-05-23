@@ -120,7 +120,7 @@ export function PriceHistoryChart({ watchId, watchName, targetPrice, mini = fals
         </div>
       </div>
       
-      <div className="h-64 w-full">
+      <div className="w-full h-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <defs>
