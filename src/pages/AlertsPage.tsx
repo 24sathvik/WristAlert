@@ -143,68 +143,6 @@ export default function AlertsPage() {
         </div>
       </div>
 
-      {/* Global Settings */}
-      <div className="card p-6 mb-10 bg-black">
-        <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-          <Settings className="h-5 w-5 text-primary" /> Global Alert Settings
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          
-          <div>
-            <label className="block text-sm font-bold mb-3">Quiet Hours (11 PM - 8 AM)</label>
-            <div 
-              className={`w-14 h-8 rounded-full p-1 cursor-pointer transition-colors ${userPrefs.quiet_hours ? 'bg-primary' : 'bg-surface border border-border'}`}
-              onClick={() => handleUpdatePrefs('quiet_hours', !userPrefs.quiet_hours)}
-            >
-              <div className={`w-6 h-6 rounded-full bg-white transition-transform ${userPrefs.quiet_hours ? 'translate-x-6' : 'translate-x-0'}`}>
-                {userPrefs.quiet_hours && <Moon className="h-4 w-4 text-primary m-1" />}
-              </div>
-            </div>
-            <p className="text-xs text-text-muted mt-2">Delay alerts during the night.</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold mb-3 flex justify-between">
-              Minimum Global Drop % <span>{globalDropPct}%</span>
-            </label>
-            <input 
-              type="range" 
-              min="1" 
-              max="50" 
-              value={globalDropPct} 
-              onChange={(e) => setGlobalDropPct(parseInt(e.target.value))}
-              className="w-full accent-primary"
-            />
-            <p className="text-xs text-text-muted mt-2">Applies to new alerts by default.</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold mb-3">Master Channels</label>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => handleUpdateChannels('email')}
-                className={`p-2 rounded-lg border transition-colors ${userPrefs.notification_prefs?.email ? 'bg-primary/20 border-primary text-primary' : 'bg-surface border-border'}`}
-              >
-                <Mail className="h-5 w-5" />
-              </button>
-              <button 
-                onClick={() => handleUpdateChannels('whatsapp')}
-                className={`p-2 rounded-lg border transition-colors ${userPrefs.notification_prefs?.whatsapp ? 'bg-primary/20 border-primary text-primary' : 'bg-surface border-border'}`}
-              >
-                <MessageSquare className="h-5 w-5" />
-              </button>
-              <button 
-                onClick={() => handleUpdateChannels('push')}
-                className={`p-2 rounded-lg border transition-colors ${userPrefs.notification_prefs?.push ? 'bg-primary/20 border-primary text-primary' : 'bg-surface border-border'}`}
-              >
-                <Bell className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
       {/* Alert Cards Grid */}
       <h2 className="text-xl font-bold mb-4">Active Alert Rules</h2>
       {loading ? (

@@ -1,4 +1,4 @@
-import { scrapeByMetadata, scrapeWithPlaywright } from './utils/scrapers.js';
+import { scrapeByMetadata } from './utils/scrapers.js';
 
 export default async function handler(req: any, res: any) {
   // CORS Headers
@@ -24,11 +24,8 @@ export default async function handler(req: any, res: any) {
   try {
     let data = await scrapeByMetadata(url);
     
-    // If critical fields missing, try Playwright
-    if (!data.price || !data.name) {
-      console.log('[Scraper] Layer 1 incomplete, trying Playwright...');
-      data = await scrapeWithPlaywright(url);
-    }
+    // Removed Playwright fallback because it causes severe timeouts on Vercel Serverless (10s max)
+    // If critical fields missing, we rely entirely on fast HTML/DOM parsing (Cheerio).
     
     if (!data.name && !data.price) {
       return res.status(422).json({ success: false, error: 'Could not extract product data from this URL. Please try manual entry.' });

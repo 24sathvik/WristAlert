@@ -1,8 +1,18 @@
-import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { LineChart, Smartphone, Store, ArrowRight } from 'lucide-react'
 import PageTransition from '@/components/PageTransition'
+import { useAuthStore } from '@/store/useAuthStore'
 
 export default function LandingPage() {
+  const { user, isLoading } = useAuthStore()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      navigate('/dashboard')
+    }
+  }, [user, isLoading, navigate])
   return (
     <PageTransition>
       <div className="flex flex-col min-h-screen">

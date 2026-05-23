@@ -1,15 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Watch } from 'lucide-react'
 import { supabase } from '@/lib/supabaseClient'
+import { useAuthStore } from '@/store/useAuthStore'
 import toast from 'react-hot-toast'
 
 export default function SignupPage() {
+  const { user, isLoading } = useAuthStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      navigate('/dashboard')
+    }
+  }, [user, isLoading, navigate])
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()

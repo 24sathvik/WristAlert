@@ -77,6 +77,7 @@ export default function TrackPage() {
         model_name: modelName,
         image_url: productData?.imageUrl || null,
         current_price: priceToSave,
+        stock_status: productData?.stockStatus || 'unknown',
         target_price: targetPrice ? parseFloat(targetPrice) : null,
         rule_types: alertTypes,
         channels

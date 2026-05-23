@@ -78,9 +78,8 @@ export default async function handler(req: any, res: any) {
   }
   const userId = user.id;
 
-  const {
     product_url, retailer, brand, model_name, image_url,
-    current_price, target_price, rule_types, channels
+    current_price, target_price, rule_types, channels, stock_status
   } = req.body;
 
   if (!product_url) return res.status(400).json({ success: false, error: 'Product URL is required' });
@@ -105,7 +104,7 @@ export default async function handler(req: any, res: any) {
         image_url: image_url || null,
         current_price: parseFloat(current_price) || 0,
         original_price: parseFloat(current_price) || 0,
-        stock_status: 'unknown',
+        stock_status: stock_status || 'unknown',
         currency: 'INR',
         last_scraped_at: new Date().toISOString(),
       })
@@ -121,7 +120,7 @@ export default async function handler(req: any, res: any) {
     await supabase.from('price_snapshots').insert({
       watch_id: watch.id,
       price: parseFloat(current_price) || 0,
-      stock_status: 'unknown',
+      stock_status: stock_status || 'unknown',
       scraped_at: new Date().toISOString(),
     }).then(({ error }) => { if (error) console.warn('[Snapshot Insert]', error.message); });
 
