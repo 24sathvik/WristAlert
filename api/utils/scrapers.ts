@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { chromium } from 'playwright';
+
 
 function parsePrice(text: string | null | undefined): number | null {
   if (!text) return null;
@@ -269,30 +269,5 @@ export async function scrapeByMetadata(url: string) {
   return extractFromHtml($, url);
 }
 
-export async function scrapeWithPlaywright(url: string) {
-  const browser = await chromium.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-  });
-  const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    viewport: { width: 1280, height: 720 },
-    locale: 'en-IN',
-    extraHTTPHeaders: { 'Accept-Language': 'en-IN,en;q=0.9' }
-  });
-  const page = await context.newPage();
-  
-  await page.route('**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,eot}', r => r.abort());
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  
-  await page.waitForSelector(
-    '#availability, ._16FRp0, .pdp-add-to-bag, .add-to-cart-btn, p.stock, [itemprop="availability"], button[class*="cart"]',
-    { timeout: 8000 }
-  ).catch(() => {});
-  
-  const html = await page.content();
-  await browser.close();
-  
-  const $ = cheerio.load(html);
-  return extractFromHtml($, url);
-}
+
+

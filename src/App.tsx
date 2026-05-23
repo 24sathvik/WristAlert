@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { supabase } from '@/lib/supabaseClient'
@@ -10,6 +10,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Skeleton } from '@/components/Skeleton'
 import { AnimatePresence } from 'framer-motion'
 import WatchTickBackground from '@/components/WatchTickBackground'
+import SplashAnimation from '@/components/SplashAnimation'
 
 // Lazy loaded pages for performance
 const LandingPage = React.lazy(() => import('@/pages/LandingPage'))
@@ -39,6 +40,15 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   const { user, setUser, setLoading } = useAuthStore()
+  const [splashDone, setSplashDone] = useState(() => {
+    // Only show splash on first visit per session
+    return sessionStorage.getItem('splash_shown') === 'true'
+  })
+
+  const handleSplashComplete = useCallback(() => {
+    sessionStorage.setItem('splash_shown', 'true')
+    setSplashDone(true)
+  }, [])
 
   // Initialize the browser-based cron scraper
   useCronScraper(!!user)
@@ -61,6 +71,9 @@ function App() {
 
   return (
     <BrowserRouter>
+      {/* Splash screen — shown once per browser session */}
+      {!splashDone && <SplashAnimation onComplete={handleSplashComplete} />}
+
       <div className="min-h-screen bg-background text-text-primary flex flex-col relative">
         <WatchTickBackground />
         <Navbar />

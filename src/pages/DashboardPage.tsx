@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
-import { Activity, Watch as WatchIcon, Trash2, BellRing, TrendingDown, RefreshCw, Plus } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Activity, Watch as WatchIcon, Trash2, BellRing, TrendingDown, RefreshCw, Plus, Wifi, Clock } from 'lucide-react'
+
+import { motion, AnimatePresence } from 'framer-motion'
 import PageTransition from '@/components/PageTransition'
 import { supabase } from '@/lib/supabaseClient'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -9,6 +10,7 @@ import type { Watch, PriceSnapshot } from '@/types/database'
 import { WatchDetailModal } from '@/components/WatchDetailModal'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import { useSyncStore } from '@/store/useSyncStore'
 
 interface EnrichedWatch extends Watch {
   snapshots: PriceSnapshot[]
@@ -217,6 +219,24 @@ export default function DashboardPage() {
     return status.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
   }
 
+  const { isSyncing, lastSyncAt, nextSyncIn } = useSyncStore()
+
+  const formatLastSync = (ts: number | null) => {
+    if (!ts) return 'Never'
+    const secs = Math.floor((Date.now() - ts) / 1000)
+    if (secs < 10) return 'Just now'
+    if (secs < 60) return `${secs}s ago`
+    const mins = Math.floor(secs / 60)
+    if (mins < 60) return `${mins} min ago`
+    return `${Math.floor(mins / 60)} hr ago`
+  }
+
+  const formatCountdown = (secs: number) => {
+    const m = Math.floor(secs / 60)
+    const s = secs % 60
+    return `${m}:${String(s).padStart(2, '0')}`
+  }
+
   return (
     <PageTransition>
       <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -226,6 +246,58 @@ export default function DashboardPage() {
             <Plus className="h-4 w-4" /> Add Watch
           </Link>
         </div>
+
+        {/* Live Tracking Status Banner */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={isSyncing ? 'syncing' : 'idle'}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className={`rounded-xl border px-5 py-3 flex items-center justify-between gap-4 text-sm ${
+              isSyncing
+                ? 'border-primary/40 bg-primary/5'
+                : 'border-border/40 bg-surface/50'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              {isSyncing ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                >
+                  <RefreshCw className="h-4 w-4 text-primary" />
+                </motion.div>
+              ) : (
+                <motion.div
+                  animate={{ scale: [1, 1.3, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="relative"
+                >
+                  <Wifi className="h-4 w-4 text-emerald-400" />
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                </motion.div>
+              )}
+              <div>
+                <span className="font-semibold text-text-primary">
+                  {isSyncing ? 'Fetching live prices...' : 'Live Tracking Active'}
+                </span>
+                <span className="text-text-muted ml-2">
+                  {isSyncing ? 'Scraping all watched items' : `Last checked: ${formatLastSync(lastSyncAt)}`}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-text-muted font-mono text-xs shrink-0">
+              {!isSyncing && (
+                <>
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>Next in <span className="text-primary font-bold">{formatCountdown(nextSyncIn)}</span></span>
+                </>
+              )}
+            </div>
+          </motion.div>
+        </AnimatePresence>
 
         {/* Stats Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
