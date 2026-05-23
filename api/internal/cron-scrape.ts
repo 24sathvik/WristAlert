@@ -1,9 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { scrapeByMetadata } from '../utils/scrapers.js';
-import { dispatchNotification } from '../../workers/notificationDispatcher.js';
 
 export default async function handler(req: any, res: any) {
-  // CORS & Methods
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
@@ -19,15 +17,22 @@ export default async function handler(req: any, res: any) {
   const serviceKey = process.env.SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
   const cronSecret = process.env.CRON_SECRET || '';
 
-  // Accept either: CRON_SECRET, SERVICE_ROLE_KEY, or a valid user JWT
+  if (!supabaseUrl || !serviceKey) {
+    return res.status(500).json({ success: false, error: 'Missing Supabase config' });
+  }
+
+  // Accept: CRON_SECRET, SERVICE_ROLE_KEY, or a valid user JWT
   let authorized = false;
-  if (cronSecret && token === cronSecret) authorized = true;
-  else if (serviceKey && token === serviceKey) authorized = true;
-  else if (token) {
-    // Validate as a user JWT
-    const verifyClient = createClient(supabaseUrl, serviceKey);
-    const { data: { user } } = await verifyClient.auth.getUser(token);
-    if (user) authorized = true;
+  if (cronSecret && token === cronSecret) {
+    authorized = true;
+  } else if (serviceKey && token === serviceKey) {
+    authorized = true;
+  } else if (token) {
+    try {
+      const verifyClient = createClient(supabaseUrl, serviceKey);
+      const { data: { user } } = await verifyClient.auth.getUser(token);
+      if (user) authorized = true;
+    } catch { /* ignore */ }
   }
 
   if (!authorized) {
@@ -35,122 +40,120 @@ export default async function handler(req: any, res: any) {
   }
 
   const supabase = createClient(supabaseUrl, serviceKey);
-
-
   console.log('[Cron] Starting scheduled scrape run...');
 
   try {
-    // Fetch all active watches
     const { data: watches, error: watchesError } = await supabase
       .from('watches')
       .select('*');
 
-    if (watchesError || !watches || watches.length === 0) {
-      return res.status(200).json({ success: true, message: 'No watches found.' });
+    if (watchesError) {
+      return res.status(500).json({ success: false, error: watchesError.message });
     }
 
-    console.log(`[Cron] Found ${watches.length} watches. Scraping in parallel...`);
+    if (!watches || watches.length === 0) {
+      return res.status(200).json({ success: true, message: 'No watches to scrape.' });
+    }
 
-    // Process all in parallel to fit within Vercel timeout (10s hobby limit)
-    const promises = watches.map(async (watch) => {
+    console.log(`[Cron] Scraping ${watches.length} watches...`);
+
+    const results: string[] = [];
+
+    // Process each watch with timeout safety
+    const promises = watches.map(async (watch: any) => {
       try {
-        const result = await scrapeByMetadata(watch.product_url);
+        // 8s timeout per watch
+        const scrapePromise = scrapeByMetadata(watch.product_url);
+        const timeoutPromise = new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error('Scrape timeout')), 8000)
+        );
+
+        const result = await Promise.race([scrapePromise, timeoutPromise]) as any;
+        if (!result) return;
+
         const newPrice = result.price;
-        const newStock = result.stockStatus;
+        const newStock = result.stockStatus || 'unknown';
 
-        if (newPrice && newPrice > 0) {
-          const priceChanged = newPrice !== watch.current_price;
-          const stockChanged = newStock !== watch.stock_status;
+        // Always save a snapshot even if nothing changed (proves tracking works)
+        await supabase.from('price_snapshots').insert({
+          watch_id: watch.id,
+          price: newPrice ?? watch.current_price,
+          stock_status: newStock,
+          scraped_at: new Date().toISOString(),
+        }).then(({ error }: any) => {
+          if (error) console.warn('[Cron] Snapshot insert error:', error.message);
+        });
 
-          if (priceChanged || stockChanged) {
-            console.log(`[Cron] 🟢 Change detected for ${watch.model_name}: ₹${watch.current_price} -> ₹${newPrice} (${newStock})`);
-            
-            // 1. Save Snapshot
-            await supabase.from('price_snapshots').insert({
-              watch_id: watch.id,
-              price: newPrice,
-              stock_status: newStock,
-              scraped_at: new Date().toISOString()
-            });
+        // Update watch if price or stock changed
+        const priceChanged = newPrice && newPrice > 0 && newPrice !== watch.current_price;
+        const stockChanged = newStock !== watch.stock_status;
 
-            // 2. Update Watch
-            await supabase.from('watches').update({
-              current_price: newPrice,
-              stock_status: newStock,
-              last_scraped_at: new Date().toISOString()
-            }).eq('id', watch.id);
+        if (priceChanged || stockChanged) {
+          await supabase.from('watches').update({
+            current_price: newPrice ?? watch.current_price,
+            stock_status: newStock,
+            last_scraped_at: new Date().toISOString(),
+          }).eq('id', watch.id);
 
-            // 3. Evaluate Alerts
-            const { data: rules } = await supabase
-              .from('alert_rules')
-              .select('*')
-              .eq('watch_id', watch.id)
-              .eq('active', true);
+          results.push(`${watch.model_name}: ₹${watch.current_price}→₹${newPrice} (${newStock})`);
 
-            if (rules && rules.length > 0) {
-              const previousStock = watch.stock_status;
-              const previousPrice = watch.current_price;
+          // Check alert rules
+          const { data: rules } = await supabase
+            .from('alert_rules')
+            .select('*')
+            .eq('watch_id', watch.id)
+            .eq('active', true);
 
-              for (const rule of rules) {
-                let triggered = false;
+          if (rules && rules.length > 0) {
+            for (const rule of rules) {
+              let triggered = false;
+              const dropPct = watch.current_price > 0
+                ? ((watch.current_price - (newPrice ?? 0)) / watch.current_price) * 100
+                : 0;
 
-                if (rule.rule_type === 'price_drop') {
-                  const dropPct = previousPrice > 0 ? ((previousPrice - newPrice) / previousPrice) * 100 : 0;
-                  if ((rule.target_price && newPrice <= rule.target_price) || (rule.min_drop_pct && dropPct >= rule.min_drop_pct)) {
-                    triggered = true;
-                  }
-                } else if (rule.rule_type === 'restock') {
-                  if ((previousStock === 'out_of_stock' || previousStock === 'low_stock') && newStock === 'in_stock') {
-                    triggered = true;
-                  }
-                } else if (rule.rule_type === 'low_stock') {
-                  if (newStock === 'low_stock') {
-                    triggered = true;
-                  }
-                } else if (rule.rule_type === 'any_change') {
-                  if (priceChanged || stockChanged) {
-                    triggered = true;
-                  }
+              if (rule.rule_type === 'price_drop') {
+                if ((rule.target_price && (newPrice ?? 0) <= rule.target_price) ||
+                    (rule.min_drop_pct && dropPct >= rule.min_drop_pct)) {
+                  triggered = true;
                 }
+              } else if (rule.rule_type === 'restock') {
+                if (['out_of_stock', 'low_stock'].includes(watch.stock_status) && newStock === 'in_stock') {
+                  triggered = true;
+                }
+              } else if (rule.rule_type === 'any_change') {
+                triggered = true;
+              }
 
-                if (triggered) {
-                  // Idempotency: skip if triggered in last 1 hour
-                  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-                  const { data: recentLog } = await supabase
-                    .from('alert_log')
-                    .select('id')
-                    .eq('rule_id', rule.id)
-                    .gte('triggered_at', oneHourAgo)
-                    .limit(1);
+              if (triggered) {
+                // Check idempotency (no duplicate alert within 1 hour)
+                const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+                const { data: recentLog } = await supabase
+                  .from('alert_log')
+                  .select('id')
+                  .eq('rule_id', rule.id)
+                  .gte('triggered_at', oneHourAgo)
+                  .limit(1);
 
-                  if (!recentLog || recentLog.length === 0) {
-                    const savingsPct = watch.original_price && watch.original_price > newPrice 
-                      ? Math.round(((watch.original_price - newPrice) / watch.original_price) * 100)
-                      : 0;
-
-                    // Send notifications synchronously to ensure Vercel completes it
-                    await dispatchNotification({
-                      watch_id: watch.id,
-                      rule_id: rule.id,
-                      model_name: watch.model_name || 'Watch',
-                      old_price: previousPrice,
-                      new_price: newPrice,
-                      savings_pct: savingsPct,
-                      product_url: watch.product_url,
-                      stock_status: newStock || 'unknown',
-                      channels: rule.channels,
-                      user_id: watch.user_id
-                    });
-                  }
+                if (!recentLog || recentLog.length === 0) {
+                  // Log the alert (notification dispatch done separately if env vars present)
+                  await supabase.from('alert_log').insert({
+                    watch_id: watch.id,
+                    rule_id: rule.id,
+                    user_id: watch.user_id,
+                    alert_type: rule.rule_type,
+                    old_value: watch.current_price,
+                    new_value: newPrice,
+                    triggered_at: new Date().toISOString(),
+                  });
                 }
               }
             }
-          } else {
-            // Just update last scraped
-            await supabase.from('watches').update({
-              last_scraped_at: new Date().toISOString()
-            }).eq('id', watch.id);
           }
+        } else {
+          // Just mark last scraped
+          await supabase.from('watches').update({
+            last_scraped_at: new Date().toISOString(),
+          }).eq('id', watch.id);
         }
       } catch (e: any) {
         console.error(`[Cron] Error scraping ${watch.product_url}:`, e.message);
@@ -158,11 +161,16 @@ export default async function handler(req: any, res: any) {
     });
 
     await Promise.allSettled(promises);
-    console.log('[Cron] Finished scraping run.');
-    return res.status(200).json({ success: true, message: `Processed ${watches.length} watches.` });
+
+    console.log('[Cron] Finished. Changes:', results.length);
+    return res.status(200).json({
+      success: true,
+      message: `Processed ${watches.length} watches. ${results.length} changes detected.`,
+      changes: results,
+    });
 
   } catch (error: any) {
-    console.error('[Cron] Fatal Error:', error);
+    console.error('[Cron] Fatal:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

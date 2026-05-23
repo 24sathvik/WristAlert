@@ -11,6 +11,7 @@ import { WatchDetailModal } from '@/components/WatchDetailModal'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useSyncStore } from '@/store/useSyncStore'
+import { SCRAPE_COMPLETE_EVENT } from '@/hooks/useCronScraper'
 
 interface EnrichedWatch extends Watch {
   snapshots: PriceSnapshot[]
@@ -171,26 +172,26 @@ export default function DashboardPage() {
 
     fetchData()
 
+    // Listen for scrape-complete event to auto-refresh fresh data
+    const handleScrapeComplete = () => { fetchData() }
+    window.addEventListener(SCRAPE_COMPLETE_EVENT, handleScrapeComplete)
+
     // Setup Realtime Subscriptions
     const watchSubscription = supabase.channel('schema-db-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'watches', filter: `user_id=eq.${user.id}` },
-        () => {
-          // Simplest approach: refetch data on change
-          fetchData()
-        }
+        () => { fetchData() }
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'alert_log' },
-        () => {
-          fetchData()
-        }
+        () => { fetchData() }
       )
       .subscribe()
 
     return () => {
+      window.removeEventListener(SCRAPE_COMPLETE_EVENT, handleScrapeComplete)
       supabase.removeChannel(watchSubscription)
     }
   }, [user])
