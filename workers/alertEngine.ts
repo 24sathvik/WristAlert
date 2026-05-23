@@ -1,10 +1,7 @@
 import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
-import { dispatchNotification } from './notificationDispatcher';
-
-dotenv.config();
+import { dispatchNotification } from './notificationDispatcher.js';
 
 const redisUrl = process.env.REDIS_URL || '';
 const redisConnection = new IORedis(redisUrl, { maxRetriesPerRequest: null });

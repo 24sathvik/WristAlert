@@ -1,16 +1,4 @@
-import { Queue } from 'bullmq';
-import IORedis from 'ioredis';
 import { createClient } from '@supabase/supabase-js';
-
-// Setup Redis & Queue (safe to fail in local dev without Redis)
-const redisUrl = process.env.REDIS_URL || '';
-let scrapeQueue: Queue | null = null;
-try {
-  const redisConnection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
-  scrapeQueue = new Queue('scrapeQueue', { connection: redisConnection });
-} catch (e) {
-  console.warn('Redis unavailable, skipping queue setup');
-}
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
@@ -86,11 +74,14 @@ export default async function handler(req: any, res: any) {
 
   try {
     // 0. Ensure user exists in public.users to satisfy foreign key constraints
-    await supabase.from('users')
+    const { error: upsertError } = await supabase.from('users')
       .upsert({ id: userId, email: user.email })
       .select()
-      .single()
-      .catch(e => console.warn('User upsert failed:', e.message));
+      .single();
+      
+    if (upsertError) {
+      console.warn('User upsert failed:', upsertError.message);
+    }
 
     // 1. Insert Watch
     const { data: watch, error: watchError } = await supabase
@@ -138,11 +129,7 @@ export default async function handler(req: any, res: any) {
       if (ruleError) console.warn('[Alert Rules Insert]', ruleError.message);
     }
 
-    // 4. Queue immediate first scrape (best-effort)
-    if (scrapeQueue) {
-      await scrapeQueue.add('scrape-watch', { watchId: watch.id, url: product_url }, { delay: 0 })
-        .catch(e => console.warn('Redis queue failed:', e.message));
-    }
+
 
     return res.status(201).json({ success: true, data: watch });
   } catch (error: any) {

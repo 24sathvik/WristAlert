@@ -1,10 +1,7 @@
 import { Resend } from 'resend';
 import axios from 'axios';
 import * as admin from 'firebase-admin';
-import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
-
-dotenv.config();
 
 const resend = new Resend(process.env.RESEND_API_KEY || '');
 const watiToken = process.env.WATI_API_TOKEN || '';

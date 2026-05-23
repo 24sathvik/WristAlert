@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useAuthStore } from '@/store/useAuthStore'
-import { Bell, Activity, Tag, Store, Percent, Watch as WatchIcon, Settings, X, Edit2, Trash2, Moon, Mail, MessageSquare, ExternalLink, Check } from 'lucide-react'
+import { Bell, Activity, Tag, Store, Percent, Watch as WatchIcon, X, Edit2, Trash2, Mail, MessageSquare, ExternalLink, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { AlertRule, Watch, AlertLog } from '@/types/database'
 
@@ -12,8 +12,6 @@ export default function AlertsPage() {
   // Data States
   const [rules, setRules] = useState<(AlertRule & { watch: Watch })[]>([])
   const [history, setHistory] = useState<(AlertLog & { watch: Watch, rule: AlertRule })[]>([])
-  const [userPrefs, setUserPrefs] = useState<any>({ quiet_hours: false, notification_prefs: { email: true, whatsapp: false, push: false } })
-  const [globalDropPct, setGlobalDropPct] = useState(10)
 
   // Edit Drawer State
   const [editRule, setEditRule] = useState<(AlertRule & { watch: Watch }) | null>(null)
@@ -29,10 +27,6 @@ export default function AlertsPage() {
   const fetchData = async () => {
     setLoading(true)
     
-    // Fetch user prefs
-    const { data: profile } = await supabase.from('users').select('*').eq('id', user?.id).single()
-    if (profile) setUserPrefs(profile)
-
     // Fetch Active Watches (we need them to join rules manually if supabase doesn't support nested joins easily, but we can try nested)
     const { data: rulesData } = await supabase
       .from('alert_rules')
@@ -67,22 +61,7 @@ export default function AlertsPage() {
     setLoading(false)
   }
 
-  const handleUpdatePrefs = async (key: string, value: any) => {
-    if (!user) return
-    const newPrefs = { ...userPrefs, [key]: value }
-    setUserPrefs(newPrefs)
-    await supabase.from('users').update({ [key]: value }).eq('id', user.id)
-    toast.success('Settings updated')
-  }
 
-  const handleUpdateChannels = async (channel: string) => {
-    if (!user) return
-    const currentChannels = userPrefs.notification_prefs || { email: true, whatsapp: false, push: false }
-    const newChannels = { ...currentChannels, [channel]: !currentChannels[channel] }
-    const newPrefs = { ...userPrefs, notification_prefs: newChannels }
-    setUserPrefs(newPrefs)
-    await supabase.from('users').update({ notification_prefs: newChannels }).eq('id', user.id)
-  }
 
   const handleDeleteRule = async (id: string) => {
     if (!confirm('Are you sure you want to delete this alert?')) return
