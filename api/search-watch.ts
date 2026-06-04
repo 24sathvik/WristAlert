@@ -111,6 +111,28 @@ async function searchMyntra(query: string) {
       reviewCount: p.ratingCount || null,
     }));
   } catch {
+    // Fallback to HTML parsing if API fails (401 Unauthorized etc)
+    try {
+      const url = `https://www.myntra.com/${encoded.toLowerCase().replace(/%20/g, '-')}-watch`;
+      const html = await fetchHtml(url);
+      const $ = cheerio.load(html);
+      const script = $('script').filter((_, el) => $(el).html()?.includes('searchData') || false).html() || '';
+      const match = script.match(/window\.__myx = (.+?);/);
+      if (match) {
+        const data = JSON.parse(match[1]);
+        const products = data.searchData?.results?.products || [];
+        return products.slice(0, 5).map((p: any) => ({
+          name: p.productName || p.name,
+          price: p.price || p.discountedPrice,
+          originalPrice: p.mrp || p.price,
+          imageUrl: p.images?.[0]?.src ? `https://assets.myntassets.com/dpr_1.5,q_60,w_400,c_limit,fl_progressive/${p.images[0].src}` : null,
+          productUrl: `https://www.myntra.com/${p.slug || p.productId}`,
+          stockStatus: p.availability === 'IN_STOCK' ? 'in_stock' : 'out_of_stock',
+          rating: p.rating || null,
+          reviewCount: p.ratingCount || null,
+        }));
+      }
+    } catch (fallbackErr) {}
     return [];
   }
 }
