@@ -29,8 +29,9 @@ export default function FindWatchPage() {
     setResults([]);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/search-watch`, {
+      // Use relative path in production (Vercel serverless), absolute in local dev
+      const apiBase = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${apiBase}/api/search-watch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -74,8 +75,8 @@ export default function FindWatchPage() {
         return;
       }
 
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/api/watches`, {
+      const apiBase = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${apiBase}/api/watches`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

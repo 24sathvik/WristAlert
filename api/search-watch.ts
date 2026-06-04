@@ -26,8 +26,8 @@ async function fetchHtml(url: string) {
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
       },
-      timeout: 12000,
-      maxRedirects: 5,
+      timeout: 7000,
+      maxRedirects: 3,
     });
     return response.data;
   } catch {
@@ -292,6 +292,14 @@ export const PLATFORMS = [
 ];
 
 export default async function searchWatch(req: any, res: any) {
+  // CORS headers — required for browser fetches from Vercel frontend
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -300,13 +308,22 @@ export default async function searchWatch(req: any, res: any) {
   if (!query?.trim()) return res.status(400).json({ error: 'Query required' });
 
   try {
+    // Wrap each platform search in an individual timeout so slow scrapers don't block the response
+    const withTimeout = (fn: Promise<any>, ms: number) =>
+      Promise.race([fn, new Promise<any[]>((resolve) => setTimeout(() => resolve([]), ms))]);
+
     const settled = await Promise.allSettled(
-      PLATFORMS.map(p => p.searchFn(query).then((results: any) => ({ platform: p, results })))
+      PLATFORMS.map(p =>
+        withTimeout(
+          p.searchFn(query).then((results: any) => ({ platform: p, results })),
+          8000
+        )
+      )
     );
 
     const allResults: any[] = [];
     for (const outcome of settled) {
-      if (outcome.status === 'fulfilled' && outcome.value.results?.length) {
+      if (outcome.status === 'fulfilled' && outcome.value?.results?.length) {
         for (const r of outcome.value.results) {
           allResults.push({
             platform: outcome.value.platform.id,
