@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Watch, Bell, User as UserIcon, Settings, LogOut, UserCircle } from 'lucide-react'
+import { Watch, Bell, User as UserIcon, Settings, LogOut, UserCircle, Search } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useState, useEffect } from 'react'
 
@@ -37,6 +37,7 @@ export default function Navbar() {
               <div className="hidden md:block">
                 <div className="ml-10 flex items-baseline space-x-4">
                   <Link to="/dashboard" className="text-text-primary hover:text-primary px-3 py-2 rounded-md font-medium transition-colors">Dashboard</Link>
+                  <Link to="/find" className="text-text-primary hover:text-primary px-3 py-2 rounded-md font-medium transition-colors flex items-center gap-1"><Search className="w-4 h-4" /> Find Watches</Link>
                   <Link to="/track" className="text-text-primary hover:text-primary px-3 py-2 rounded-md font-medium transition-colors">Track</Link>
                   <Link to="/alerts" className="text-text-primary hover:text-primary px-3 py-2 rounded-md font-medium transition-colors">Alerts</Link>
                 </div>

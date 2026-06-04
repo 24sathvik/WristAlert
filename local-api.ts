@@ -2,12 +2,17 @@ import express from 'express';
 import cors from 'cors';
 import scrapeProduct from './api/scrape-product.js';
 import watches from './api/watches.js';
+import searchWatch from './api/search-watch.js';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // Wrapper to adapt Express req/res to Vercel-like handlers if needed, though they are mostly compatible.
+app.all('/api/search-watch', async (req, res) => {
+  try { await searchWatch(req, res); } catch(e) { res.status(500).json({error: e.message}); }
+});
+
 app.all('/api/scrape-product', async (req, res) => {
   try { await scrapeProduct(req, res); } catch(e) { res.status(500).json({error: e.message}); }
 });

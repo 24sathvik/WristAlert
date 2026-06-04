@@ -18,6 +18,7 @@ const LoginPage = React.lazy(() => import('@/pages/auth/LoginPage'))
 const SignupPage = React.lazy(() => import('@/pages/auth/SignupPage'))
 const OnboardingPage = React.lazy(() => import('@/pages/auth/OnboardingPage'))
 const DashboardPage = React.lazy(() => import('@/pages/DashboardPage'))
+const FindWatchPage = React.lazy(() => import('@/pages/FindWatchPage'))
 const TrackPage = React.lazy(() => import('@/pages/TrackPage'))
 const AlertsPage = React.lazy(() => import('@/pages/AlertsPage'))
 const UserProfilePage = React.lazy(() => import('@/pages/UserProfile'))
@@ -90,6 +91,7 @@ function App() {
 
                 {/* Protected Routes */}
                 <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+                <Route path="/find" element={<ProtectedRoute><FindWatchPage /></ProtectedRoute>} />
                 <Route path="/track" element={<ProtectedRoute><TrackPage /></ProtectedRoute>} />
                 <Route path="/alerts" element={<ProtectedRoute><AlertsPage /></ProtectedRoute>} />
                 <Route path="/profile" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />

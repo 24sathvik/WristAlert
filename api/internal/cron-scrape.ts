@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { scrapeByMetadata } from '../utils/scrapers.js';
+import { scrapeProductUrl } from '../scrape-product.js';
 
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -63,7 +63,7 @@ export default async function handler(req: any, res: any) {
     const promises = watches.map(async (watch: any) => {
       try {
         // 8s timeout per watch
-        const scrapePromise = scrapeByMetadata(watch.product_url);
+        const scrapePromise = scrapeProductUrl(watch.product_url);
         const timeoutPromise = new Promise<null>((_, reject) =>
           setTimeout(() => reject(new Error('Scrape timeout')), 8000)
         );
