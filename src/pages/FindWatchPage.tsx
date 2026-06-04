@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 import { PlatformResultCard } from '@/components/PlatformResultCard';
 import { Skeleton } from '@/components/Skeleton';
