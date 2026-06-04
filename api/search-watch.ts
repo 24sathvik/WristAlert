@@ -298,14 +298,14 @@ export default async function searchWatch(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
+  if (req.method === 'OPTIONS') { return res.status(200).json({}); }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(200).json({ success: false, error: 'Method not allowed', results: [] });
   }
 
-  const { query } = req.body;
-  if (!query?.trim()) return res.status(400).json({ error: 'Query required' });
+  const query = req.body?.query || (typeof req.body === 'string' ? JSON.parse(req.body).query : null);
+  if (!query?.trim()) return res.status(200).json({ success: false, error: 'Query required', results: [] });
 
   try {
     // Wrap each platform search in an individual timeout so slow scrapers don't block the response
@@ -346,6 +346,6 @@ export default async function searchWatch(req: any, res: any) {
     return res.json({ success: true, query, results: allResults, total: allResults.length });
   } catch (error: any) {
     console.error('Error in searchWatch:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    return res.status(200).json({ success: false, error: error.message || 'Internal server error', results: [] });
   }
 }

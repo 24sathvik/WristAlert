@@ -44,12 +44,15 @@ export default function FindWatchPage() {
       }
 
       const data = await response.json();
-      if (data.success && data.results) {
+      if (!data.success) {
+        throw new Error(data.error || 'Search failed on the server');
+      }
+      if (data.results) {
         setResults(data.results);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Search error:', error);
-      toast.error('Failed to search platforms. Please try again.');
+      toast.error(error.message || 'Failed to search platforms. Please try again.');
     } finally {
       setIsSearching(false);
     }
