@@ -171,7 +171,7 @@ export default function FindWatchPage() {
           {/* Header & Controls */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface/50 p-4 rounded-xl border border-border">
             <h2 className="text-lg font-medium text-white">
-              {isSearching ? `Searching globally across all platforms...` : `Showing results for "${query}" across ${results.length} platforms`}
+              {isSearching ? `Searching top watch platforms...` : `Showing results for "${query}" across ${results.length} platforms`}
             </h2>
             <div className="flex flex-wrap items-center gap-4">
               <label className="flex items-center gap-2 text-sm text-text-primary cursor-pointer">
