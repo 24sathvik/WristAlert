@@ -1,8 +1,7 @@
 {
   "functions": {
     "api/**/*.ts": {
-      "maxDuration": 60,
-      "region": "bom1"
+      "maxDuration": 60
     }
   },
   "rewrites": [
