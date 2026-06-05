@@ -227,12 +227,16 @@ export default async function searchWatch(req: any, res: any) {
       )
     ));
 
-    const allResults = [];
+    const allResults: any[] = [];
     for (const outcome of settled) {
       if (outcome.status === 'fulfilled' && outcome.value?.results?.length > 0) {
-        allResults.push({
-          platform: { name: outcome.value.platform.name, id: outcome.value.platform.id },
-          results: outcome.value.results
+        // Flatten the results and attach the platform info to each watch
+        outcome.value.results.forEach((watch: any) => {
+          allResults.push({
+            ...watch,
+            platform: outcome.value.platform.id,
+            platformName: outcome.value.platform.name
+          });
         });
       }
     }
